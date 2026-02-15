@@ -1,0 +1,5 @@
+
+fuzz/all_fast_hw_fuzz*
+fuzz/cov.log
+fuzz/example*
+chiseltest/project

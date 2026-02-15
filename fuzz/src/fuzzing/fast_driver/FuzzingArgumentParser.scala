@@ -34,6 +34,7 @@ class FuzzingArgumentParser extends OptionParser[AnnotationSeq]("fuzzer") with D
     ),
     new ShellOption[Unit](
       longOption = "Directed",
+      toAnnotationSeq = _ => Seq.empty,
 //       toAnnotationSeq = _ => Seq(DoNotCoverAnnotation(CircuitTarget("TLI2C").module("TLMonitor_72")),
 //                                   DoNotCoverAnnotation(CircuitTarget("TLI2C").module("DummyPlusArgReader_75")),
 //                                   DoNotCoverAnnotation(CircuitTarget("TLSPI").module("TLMonitor_66")),
