@@ -13,6 +13,10 @@ class RfuzzTarget(dut: SimulatorContext, info: TopmoduleInfo) extends FuzzTarget
   require(info.inputs.exists(_._1 == "reset"))
 
   private var isValid = true
+  private val recorder = new FastInputRecorder(info.inputs)
+  private def poke(name: String, value: BigInt): Unit = {
+    dut.poke(name, value)
+  }
 
   private val clock = info.clocks.head
   private def step(): Unit = {
@@ -33,20 +37,20 @@ class RfuzzTarget(dut: SimulatorContext, info: TopmoduleInfo) extends FuzzTarget
   private var mutateTime: Long = 0  // time used for mutation operation
 
   private def setInputsToZero(): Unit = {
-    info.inputs.foreach { case (n, _) => dut.poke(n, 0) }
+    info.inputs.foreach { case (n, _) => poke(n, 0) }
   }
 
   private def metaReset(): Unit = {
-    dut.poke(MetaReset, 1)
+    poke(MetaReset, 1)
     step()
-    dut.poke(MetaReset, 0)
+    poke(MetaReset, 0)
     resetCycles += 1
   }
 
   private def reset(): Unit = {
-    dut.poke("reset", 1)
+    poke("reset", 1)
     step()
-    dut.poke("reset", 0)
+    poke("reset", 0)
     resetCycles += 1
   }
 
@@ -98,7 +102,7 @@ class RfuzzTarget(dut: SimulatorContext, info: TopmoduleInfo) extends FuzzTarget
       val shiftLength = originalRFUZZinputSize * 8 - size
       val mask = ((BigInt(1) << size) - 1) << shiftLength
       val bits = (input & mask) >> shiftLength
-      dut.poke(name, bits)
+      poke(name, bits)
       input = input << size
     }
   }
@@ -118,7 +122,7 @@ class RfuzzTarget(dut: SimulatorContext, info: TopmoduleInfo) extends FuzzTarget
       val value = input & mask
       input = input >> bits
       //println("'" + name + "'", bits.toString, value.toString)
-      dut.poke(name, value)
+      poke(name, value)
     }
     //println("---")
   }
@@ -136,13 +140,14 @@ class RfuzzTarget(dut: SimulatorContext, info: TopmoduleInfo) extends FuzzTarget
       }
       // 如果bits不是8的倍数，我们需要移除多余的位
       value = value & ((BigInt(1) << bits) - 1)
-      dut.poke(name, value)
+      poke(name, value)
     }
   }
 
 
   override def run(input: java.io.InputStream, feedbackCap: Int): (Seq[Byte], Boolean, Long) = {
     val start = System.nanoTime()
+    recorder.start()
     setInputsToZero()
     metaReset()
     reset()
@@ -161,6 +166,7 @@ class RfuzzTarget(dut: SimulatorContext, info: TopmoduleInfo) extends FuzzTarget
 
     var inputBytes = popFast(input)
     while (inputBytes.nonEmpty) {
+      recorder.input(inputBytes)
       applyFastInputs(inputBytes)
       step()
       inputBytes = popFast(input)
@@ -169,6 +175,7 @@ class RfuzzTarget(dut: SimulatorContext, info: TopmoduleInfo) extends FuzzTarget
     val startCoverage = System.nanoTime()
     // var c = getCoverage(feedbackCap)
     var c = getFastCoverage(feedbackCap)
+    recorder.coverage(c)
 
     if (!isValid && !acceptInvalid) {
       c = Seq.fill[Byte](c.length)(0)

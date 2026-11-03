@@ -27,6 +27,8 @@ libraryDependencies += "com.google.guava" % "guava" % "30.1-jre"
 libraryDependencies += "net.openhft" % "affinity" % "3.0.2"
 
 scalaSource in Compile := baseDirectory.value / "src"
+unmanagedSources in Compile += baseDirectory.value / "../../../../experiments/fpga_fuzzers_certitude/fuzzers/scala/PinRecorder.scala"
+unmanagedSources in Compile += baseDirectory.value / "../../../../experiments/fpga_fuzzers_certitude/fuzzers/fast_hw_fuzz/FastInputRecorder.scala"
 scalaSource in Test := baseDirectory.value / "test"
 resourceDirectory in Test := baseDirectory.value / "test" / "resources"
 

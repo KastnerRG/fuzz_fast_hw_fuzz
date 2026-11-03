@@ -229,7 +229,8 @@ public class FuzzGuidance {
     }
 
     public FuzzGuidance(String testName, Duration duration, Long trials, File outputDirectory, File seedInputDir) throws IOException {
-        this(testName, duration, trials, outputDirectory, new Random());
+        this(testName, duration, trials, outputDirectory,
+             System.getenv("FUZZ_SEED") == null ? new Random() : new Random(Long.parseLong(System.getenv("FUZZ_SEED"))));
         File[] seedInputFiles = IOUtils.resolveInputFileOrDirectory(seedInputDir);
         if (seedInputFiles != null) {
             for (File seedInputFile : IOUtils.resolveInputFileOrDirectory(seedInputDir)) {
@@ -827,6 +828,8 @@ public class FuzzGuidance {
          * <p>This field is -1 for inputs that are not saved.</p>
          */
         int id;
+        public long traceId = -1;
+        public long[] traceParents = new long[0];
 
         /**
          * Whether this input is favored.
@@ -896,6 +899,7 @@ public class FuzzGuidance {
          */
         public Input(Input toClone) {
             desc = String.format("src:%06d", toClone.id);
+            traceParents = new long[]{toClone.traceId};
         }
 
         public abstract int getOrGenerateFresh(K key, Random random);
@@ -1080,6 +1084,7 @@ public class FuzzGuidance {
             int offset2 = random.nextInt(input2.values.size());
 
             LinearInput newInput = new LinearInput();
+            newInput.traceParents = new long[]{this.traceId, input2.traceId};
             
             for (int i = 0; i < offset1; i++) {
                 newInput.values.add(this.values.get(i));

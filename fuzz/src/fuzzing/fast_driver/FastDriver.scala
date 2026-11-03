@@ -29,7 +29,7 @@
 
 package fuzzing.fast
 
-import fuzzing.targets.{FIRRTLHandler, FuzzTarget}
+import fuzzing.targets.{FIRRTLHandler, FuzzTarget, PinRecorder}
 import java.io.{File, InputStream, OutputStream, PrintWriter}
 import java.io.ByteArrayInputStream
 import java.util.concurrent.{Executors, Future, Callable}
@@ -72,7 +72,7 @@ object FastDriver extends App {
 
     val testName = "test_run_dir/fast_fuzz_" + targetKind
     val duration: Duration = Duration.ofHours(1)  // or null for unlimited time
-    val trials: Long = 100L  // or null for unlimited trials
+    val trials: Long = Option(System.getenv("FUZZ_TRIALS")).map(_.toLong).getOrElse(Long.MaxValue)
     val outputDir: File = new File(outputFolder_str)
     val seedInputDir: File = new File(seedInputFolder_str)
 
@@ -99,7 +99,7 @@ object FastFuzz {
         val threadNum = targets.length
         val pipeline = true
         // val pipeline = false
-        val iterNum = 100000    // draft version, set iteration time manually
+        val iterNum = Option(System.getenv("FUZZ_ITERATIONS")).map(_.toInt).getOrElse(100000)
         // val iterNum = 1 //debug
         val startTime = System.nanoTime()
         // /*
@@ -115,6 +115,7 @@ object FastFuzz {
             	// 2. Run simulation
             	//feedbackCap：limite the max value of coverPoints hit count to 255
                 val sim_t1 = System.nanoTime()
+                input.traceId = PinRecorder.assign(input.traceParents.toSeq)
             	val (coverage0, isValid, cycleNum) = targets(0).run(in_stream, feedbackCap)
                 val sim_t2 = System.nanoTime()
 
@@ -177,6 +178,7 @@ object FastFuzz {
                             val in_stream = fuzzGuidance.createParameterStream(input)
                   		    // 2. Run simulation
                             val sim_t1 = System.nanoTime()
+                            input.traceId = PinRecorder.assign(input.traceParents.toSeq)
                   		    val (coverage0, isValid, cycleNum) = target.run(in_stream, feedbackCap)
                             val sim_t2 = System.nanoTime()
 
@@ -311,6 +313,7 @@ object FastFuzz {
                             val in_stream = fuzzGuidance.createParameterStream(input)
                   		    // 2. Run simulation
                             val sim_t1 = System.nanoTime()
+                            input.traceId = PinRecorder.assign(input.traceParents.toSeq)
                   		    val (coverage0, isValid, cycleNum) = target.run(in_stream, feedbackCap)
                             val sim_t2 = System.nanoTime()
 
