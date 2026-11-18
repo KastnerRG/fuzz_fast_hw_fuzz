@@ -830,6 +830,7 @@ public class FuzzGuidance {
         int id;
         public long traceId = -1;
         public long[] traceParents = new long[0];
+        public int traceGenKind = 0;
 
         /**
          * Whether this input is favored.
@@ -890,6 +891,7 @@ public class FuzzGuidance {
          */
         public Input() {
             desc = "random";
+            traceGenKind = 3;
         }
 
         /**
@@ -900,6 +902,7 @@ public class FuzzGuidance {
         public Input(Input toClone) {
             desc = String.format("src:%06d", toClone.id);
             traceParents = new long[]{toClone.traceId};
+            traceGenKind = 7;
         }
 
         public abstract int getOrGenerateFresh(K key, Random random);
@@ -1085,6 +1088,7 @@ public class FuzzGuidance {
 
             LinearInput newInput = new LinearInput();
             newInput.traceParents = new long[]{this.traceId, input2.traceId};
+            newInput.traceGenKind = 8;
             
             for (int i = 0; i < offset1; i++) {
                 newInput.values.add(this.values.get(i));
@@ -1118,6 +1122,7 @@ public class FuzzGuidance {
             this.seedFile = seedFile;
             this.in = new BufferedInputStream(new FileInputStream(seedFile));
             this.desc = "seed";
+            this.traceGenKind = 1;
         }
 
         public SeedInput(SeedInput toClone) throws IOException {

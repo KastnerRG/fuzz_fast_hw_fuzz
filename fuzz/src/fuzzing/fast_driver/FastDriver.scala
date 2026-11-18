@@ -115,7 +115,7 @@ object FastFuzz {
             	// 2. Run simulation
             	//feedbackCap：limite the max value of coverPoints hit count to 255
                 val sim_t1 = System.nanoTime()
-                input.traceId = PinRecorder.assign(input.traceParents.toSeq)
+                input.traceId = PinRecorder.assign(input.traceParents.toSeq, input.traceGenKind)
             	val (coverage0, isValid, cycleNum) = targets(0).run(in_stream, feedbackCap)
                 val sim_t2 = System.nanoTime()
 
@@ -178,7 +178,7 @@ object FastFuzz {
                             val in_stream = fuzzGuidance.createParameterStream(input)
                   		    // 2. Run simulation
                             val sim_t1 = System.nanoTime()
-                            input.traceId = PinRecorder.assign(input.traceParents.toSeq)
+                            input.traceId = PinRecorder.assign(input.traceParents.toSeq, input.traceGenKind)
                   		    val (coverage0, isValid, cycleNum) = target.run(in_stream, feedbackCap)
                             val sim_t2 = System.nanoTime()
 
@@ -313,7 +313,7 @@ object FastFuzz {
                             val in_stream = fuzzGuidance.createParameterStream(input)
                   		    // 2. Run simulation
                             val sim_t1 = System.nanoTime()
-                            input.traceId = PinRecorder.assign(input.traceParents.toSeq)
+                            input.traceId = PinRecorder.assign(input.traceParents.toSeq, input.traceGenKind)
                   		    val (coverage0, isValid, cycleNum) = target.run(in_stream, feedbackCap)
                             val sim_t2 = System.nanoTime()
 

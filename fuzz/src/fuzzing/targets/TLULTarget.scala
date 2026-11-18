@@ -65,9 +65,16 @@ class TLULTarget(dut: SimulatorContext, info: TopmoduleInfo) extends FuzzTarget 
   require(info.inputs.exists(_._1 == "reset"))
 
   private var isValid = true
+  private val recorder = new PinRecorder(info.inputs)
+  private val recordRaw = sys.env.get("TRACE_RAW_INPUTS").contains("1")
+  private def poke(name: String, value: BigInt): Unit = {
+    dut.poke(name, value)
+    recorder.poke(name, value)
+  }
 
   private val clock = info.clocks.head
   private def step(): Unit = {
+    recorder.cycle()
     val assert_failed = dut.peek("assert_failed") == 1
     if (assert_failed) {
       isValid = false
@@ -93,20 +100,20 @@ class TLULTarget(dut: SimulatorContext, info: TopmoduleInfo) extends FuzzTarget 
   private var mutateTime: Long = 0  // time used for mutation operation
 
   private def setInputsToZero(): Unit = {
-    info.inputs.foreach { case (n, _) => dut.poke(n, 0) }
+    info.inputs.foreach { case (n, _) => poke(n, 0) }
   }
 
   private def metaReset(): Unit = {
-    dut.poke(MetaReset, 1)
+    poke(MetaReset, 1)
     step()
-    dut.poke(MetaReset, 0)
+    poke(MetaReset, 0)
     resetCycles += 1
   }
 
   private def reset(): Unit = {
-    dut.poke("reset", 1)
+    poke("reset", 1)
     step()
-    dut.poke("reset", 0)
+    poke("reset", 0)
     resetCycles += 1
   }
 
@@ -156,13 +163,13 @@ class TLULTarget(dut: SimulatorContext, info: TopmoduleInfo) extends FuzzTarget 
   }
 
   private def SendTLULRequest(opcode: BigInt, address: BigInt, data: BigInt, size: BigInt, mask: BigInt): Unit = {
-    dut.poke(TLprefix + "a_valid", 1)
-    dut.poke(TLprefix + "a_bits_opcode", opcode)
-    dut.poke(TLprefix + "a_bits_size", size)
-    dut.poke(TLprefix + "a_bits_address", address)
-    dut.poke(TLprefix + "a_bits_data", data)
-    dut.poke(TLprefix + "a_bits_mask", mask)
-    dut.poke(TLprefix + "d_ready", 1)
+    poke(TLprefix + "a_valid", 1)
+    poke(TLprefix + "a_bits_opcode", opcode)
+    poke(TLprefix + "a_bits_size", size)
+    poke(TLprefix + "a_bits_address", address)
+    poke(TLprefix + "a_bits_data", data)
+    poke(TLprefix + "a_bits_mask", mask)
+    poke(TLprefix + "d_ready", 1)
 
     WaitForDeviceReady()
   }
@@ -189,8 +196,8 @@ class TLULTarget(dut: SimulatorContext, info: TopmoduleInfo) extends FuzzTarget 
   private def ClearRequest(): Unit = {
     //fuzzInputs.foreach { case (name, size) => println("'" + name + "'", size.toString, dut.peek(name).toString) }
     //println("---")
-    fuzzInputs.foreach { case (name, _) => dut.poke(name, 0) }
-    dut.poke(TLprefix + "d_ready", 1)
+    fuzzInputs.foreach { case (name, _) => poke(name, 0) }
+    poke(TLprefix + "d_ready", 1)
   }
 
   private def applyInstruction(instruction: Instruction): Unit = {
@@ -272,6 +279,12 @@ class TLULTarget(dut: SimulatorContext, info: TopmoduleInfo) extends FuzzTarget 
 
   override def run(input: java.io.InputStream, feedbackCap: Int): (Seq[Byte], Boolean, Long) = {
     val start = System.nanoTime()
+    recorder.start()
+    val nativeInput = if (recordRaw) {
+      val bytes = input.readAllBytes()
+      recorder.raw(bytes)
+      new java.io.ByteArrayInputStream(bytes)
+    } else input
     setInputsToZero()
     metaReset()
     reset()
@@ -282,13 +295,13 @@ class TLULTarget(dut: SimulatorContext, info: TopmoduleInfo) extends FuzzTarget 
     val reset_end = System.nanoTime()
 
     //TODO: Set d_ready to be 1, as is done in TLULHostTb initialization?
-    dut.poke(TLprefix + "d_ready", 1)
+    poke(TLprefix + "d_ready", 1)
 
-    var instruction_readValid: (Instruction, Boolean) = getInstruction(input)
+    var instruction_readValid: (Instruction, Boolean) = getInstruction(nativeInput)
     //Loop if last readValid = true
     while (instruction_readValid._2) {
       applyInstruction(instruction_readValid._1)
-      instruction_readValid = getInstruction(input)
+      instruction_readValid = getInstruction(nativeInput)
       // print("Instruction: ")
       // println(instruction_readValid._1.toString)
     }
@@ -301,6 +314,7 @@ class TLULTarget(dut: SimulatorContext, info: TopmoduleInfo) extends FuzzTarget 
     if (!isValid && !acceptInvalid) {
       c = Seq.fill[Byte](c.length)(0)
     }
+    recorder.coverage(c)
 
     val end = System.nanoTime()
     totalTime += (end - start)
